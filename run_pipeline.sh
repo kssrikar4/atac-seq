@@ -22,6 +22,10 @@ fi
 printf "\n[1/11] Creating directory infrastructure...\n"
 mkdir -p ./refs ./raw ./fastq ./qc ./bam ./peaks ./bw ./tmp
 
+export TMPDIR="$(pwd)/tmp"
+set -euo pipefail
+ulimit -Sn 65536 2>/dev/null || ulimit -Sn "$(ulimit -Hn)"
+
 if [ ! -f "./refs/GRCh38_index.1.bt2" ]; then
     printf "\n[2/11] Reference genome indices not found. Initiating downloads...\n"
     wget -P ./refs/ https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/001/405/GCA_000001405.15_GRCh38/GCA_000001405.15_GRCh38_genomic.fna.gz
@@ -69,8 +73,12 @@ for SAMPLE in "${SAMPLES[@]}"; do
       samtools sort -@ 12 -T ./tmp/ -o ./bam/"${SAMPLE}".clean.bam -
     samtools index -@ 12 ./bam/"${SAMPLE}".clean.bam
 
-    printf "\n[7/11] Marking PCR duplicates and executing Tn5 shifting...\n"
-    samtools markdup -@ 12 -r ./bam/"${SAMPLE}".clean.bam ./bam/"${SAMPLE}".rmdup.bam
+    printf "\n[7/11] Fixing mate tags, marking PCR duplicates, and executing Tn5 shifting...\n"
+    samtools collate -O -u -@ 12 ./bam/"${SAMPLE}".clean.bam ./tmp/collate_prefix_"${SAMPLE}" | \
+      samtools fixmate -m -u -@ 12 - - | \
+      samtools sort -@ 12 -T ./tmp/ -o ./bam/"${SAMPLE}".fixmate.bam -
+
+    samtools markdup -@ 12 -r ./bam/"${SAMPLE}".fixmate.bam ./bam/"${SAMPLE}".rmdup.bam
     samtools index -@ 12 ./bam/"${SAMPLE}".rmdup.bam
     alignmentSieve -b ./bam/"${SAMPLE}".rmdup.bam -o ./bam/"${SAMPLE}".shifted.bam --ATACshift --numberOfProcessors 12
     samtools index -@ 12 ./bam/"${SAMPLE}".shifted.bam
