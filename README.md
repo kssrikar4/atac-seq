@@ -137,16 +137,17 @@ samtools index -@ 12 ./bam/SRRxxxxxxxxx.aln.bam
 ATAC-seq libraries suffer from specific background noise: mitochondrial DNA contamination (which lacks protective chromatin and is highly accessible to the Tn5 enzyme), low-quality alignments, PCR duplication artifacts, and technical blacklist zones.
 
 ```bash
-# Step 1: Filter out low-quality mappings (MAPQ < 30) and unmapped fragment pairs (-F 1804)
-samtools view -@ 12 -b -q 30 -F 1804 ./bam/SRRxxxxxxxxx.aln.bam > ./bam/SRRxxxxxxxxx.filt.bam
+# Step 1 : Filter low-quality/unmapped reads and strip blacklist regions in a single stream
+samtools view -@ 12 -u -q 30 -F 1804 ./bam/SRRxxxxxxxxx.aln.bam | \
+  bedtools intersect -v -ubam -a - -b ./refs/ENCFF356LFX.bed | \
 
-# Step 2: Remove the genomic blacklist regions
-bedtools intersect -v -abam ./bam/SRRxxxxxxxxx.filt.bam -b ./refs/ENCFF356LFX.bed | \
-  samtools sort -@ 12 -T ./tmp/ -o ./bam/SRRxxxxxxxxx.clean.bam -
-samtools index -@ 12 ./bam/SRRxxxxxxxxx.clean.bam
+# Step 2: Collate, assign mate tags, and coordinate-sort for duplicate marking
+  samtools collate -O -u -@ 12 - ./tmp/collate_prefix | \
+  samtools fixmate -m -u -@ 12 - - | \
+  samtools sort -@ 12 -T ./tmp/ -o ./bam/SRRxxxxxxxxx.fixmate.bam -
 
 # Step 3: Remove PCR duplicates generated during library construction
-samtools markdup -@ 12 -r ./bam/SRRxxxxxxxxx.clean.bam ./bam/SRRxxxxxxxxx.rmdup.bam
+samtools markdup -@ 12 -r ./bam/SRRxxxxxxxxx.fixmate.bam ./bam/SRRxxxxxxxxx.rmdup.bam
 samtools index -@ 12 ./bam/SRRxxxxxxxxx.rmdup.bam
 
 # Step 4: Apply the Tn5 Shift (Strictly for downstream visualization tracks)
