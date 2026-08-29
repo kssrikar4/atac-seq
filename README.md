@@ -137,7 +137,7 @@ samtools index -@ 12 ./bam/SRRxxxxxxxxx.aln.bam
 ATAC-seq libraries suffer from specific background noise: mitochondrial DNA contamination (which lacks protective chromatin and is highly accessible to the Tn5 enzyme), low-quality alignments, PCR duplication artifacts, and technical blacklist zones.
 
 ```bash
-# Step 1 : Filter low-quality/unmapped reads and strip blacklist regions in a single stream
+# Step 1: Filter low-quality/unmapped reads and strip blacklist regions in a single stream
 samtools view -@ 12 -u -q 30 -F 1804 ./bam/SRRxxxxxxxxx.aln.bam | \
   bedtools intersect -v -ubam -a - -b ./refs/ENCFF356LFX.bed | \
 
@@ -150,11 +150,13 @@ samtools view -@ 12 -u -q 30 -F 1804 ./bam/SRRxxxxxxxxx.aln.bam | \
 samtools markdup -@ 12 -r ./bam/SRRxxxxxxxxx.fixmate.bam ./bam/SRRxxxxxxxxx.rmdup.bam
 samtools index -@ 12 ./bam/SRRxxxxxxxxx.rmdup.bam
 
-# Step 4: Apply the Tn5 Shift (Strictly for downstream visualization tracks)
-alignmentSieve -b ./bam/SRRxxxxxxxxx.rmdup.bam -o ./bam/SRRxxxxxxxxx.shifted.bam --ATACshift --numberOfProcessors 12
+# Step 4: Apply the Tn5 Shift and re-sort prior to indexing (Strictly for downstream visualization tracks)
+alignmentSieve -b ./bam/SRRxxxxxxxxx.rmdup.bam -o ./tmp/SRRxxxxxxxxx.shifted.unsorted.bam --ATACshift --numberOfProcessors 12
+samtools sort -@ 12 -T ./tmp/ -o ./bam/SRRxxxxxxxxx.shifted.bam ./tmp/SRRxxxxxxxxx.shifted.unsorted.bam
 samtools index -@ 12 ./bam/SRRxxxxxxxxx.shifted.bam
 
 ```
+
 
 ### Why do we shift?
 
