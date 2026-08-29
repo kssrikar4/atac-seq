@@ -80,7 +80,9 @@ for SAMPLE in "${SAMPLES[@]}"; do
 
     samtools markdup -@ 12 -r ./bam/"${SAMPLE}".fixmate.bam ./bam/"${SAMPLE}".rmdup.bam
     samtools index -@ 12 ./bam/"${SAMPLE}".rmdup.bam
-    alignmentSieve -b ./bam/"${SAMPLE}".rmdup.bam -o ./bam/"${SAMPLE}".shifted.bam --ATACshift --numberOfProcessors 12
+    
+    alignmentSieve -b ./bam/"${SAMPLE}".rmdup.bam -o ./tmp/"${SAMPLE}".shifted.unsorted.bam --ATACshift --numberOfProcessors 12
+    samtools sort -@ 12 -T ./tmp/ -o ./bam/"${SAMPLE}".shifted.bam ./tmp/"${SAMPLE}".shifted.unsorted.bam
     samtools index -@ 12 ./bam/"${SAMPLE}".shifted.bam
 
     printf "\n[8/11] Calling open chromatin peaks via MACS3...\n"
